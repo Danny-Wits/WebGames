@@ -1,0 +1,355 @@
+:root {
+  /* Mantine Light Theme Palette */
+  --mantine-body: #f8f9fa; /* Very light gray background */
+  --mantine-paper: #ffffff; /* Pure white cards */
+  --mantine-border: #dee2e6; /* Light gray borders */
+  --mantine-text: #495057; /* Dark gray text */
+  --mantine-title: #212529; /* Nearly black titles */
+  --mantine-primary: #339af0; /* Mantine Blue remains the same */
+  --mantine-primary-hover: #228be6;
+  --mantine-dimmed: #868e96; /* Dimmed text for light mode */
+  --mantine-error: #fa5252;
+  --mantine-success: #40c057;
+
+  /* Mantine System Font */
+  --font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background: linear-gradient(
+    45deg,
+    var(--mantine-body) 50%,
+    var(--mantine-primary) 50%
+  );
+  /* background-size: 150% 150%; */
+  color: var(--mantine-text);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  animation: moveGradient 5s ease alternate infinite;
+}
+
+/* Mantine Paper Component Style */
+.screen {
+  display: none;
+  background-color: var(--mantine-paper);
+  padding: 32px; /* Mantine xl spacing */
+  width: 90%;
+  max-width: 440px;
+  border-radius: 8px; /* Mantine md radius */
+  border: 1px solid var(--mantine-border);
+  text-align: center;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.active {
+  display: block;
+  animation: fade 0.2s ease;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+h1,
+h2,
+h3 {
+  color: var(--mantine-title);
+  margin-top: 0;
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 34px;
+  margin-bottom: 8px;
+}
+h2 {
+  font-size: 24px;
+  margin-bottom: 24px;
+}
+p {
+  margin: 0 0 16px 0;
+  color: var(--mantine-dimmed);
+  font-size: 14px;
+}
+
+.emoji {
+  font-size: 80px;
+  margin: 24px 0;
+}
+
+/* Mantine TextInput Style */
+input {
+  background-color: var(--mantine-body);
+  padding: 0 14px;
+  height: 42px; /* Mantine md input height */
+  width: calc(100% - 30px); /* accounting for padding */
+  font-size: 14px;
+  font-family: var(--font-family);
+  margin-bottom: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--mantine-border);
+  color: var(--mantine-text);
+  transition: border-color 100ms ease;
+  box-sizing: border-box;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--mantine-primary);
+}
+
+/* Mantine Button Style */
+button {
+  height: 42px;
+  padding: 5px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  border: none;
+  border-radius: 4px;
+  background-color: var(--mantine-primary);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 100ms ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+button:hover {
+  background-color: var(--mantine-primary-hover);
+}
+button:active {
+  transform: translateY(1px);
+}
+
+/* Alternative Buttons (Secondary/Hints) */
+.levelBtn {
+  background-color: var(--mantine-body);
+  border: 1px solid var(--mantine-border);
+  color: var(--mantine-title);
+  margin-bottom: 12px;
+}
+.levelBtn:hover {
+  background-color: var(--mantine-border);
+}
+
+#hintBtn {
+  background-color: transparent;
+  border: 1px solid #fcc419;
+  color: #fcc419;
+  margin-bottom: 12px;
+}
+#hintBtn:hover {
+  background-color: rgba(252, 196, 25, 0.1);
+}
+
+/* Progress/Timer */
+.timerBox {
+  width: 100%;
+  height: 8px;
+  background-color: var(--mantine-body);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 24px 0;
+}
+
+#timerBar {
+  height: 100%;
+  width: 100%;
+  background-color: var(--mantine-primary);
+}
+
+/* Leaderboard List */
+#leaderboard {
+  margin-top: 24px;
+  text-align: left;
+}
+
+#board {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#board li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--mantine-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+#board li:last-child {
+  border-bottom: none;
+}
+
+.score-display {
+  color: var(--mantine-title);
+  font-weight: 700;
+  font-family: Consolas, monospace;
+}
+
+/* Mantine AppShell-like Header/Footer */
+.top-bar {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  height: 50px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  background-color: var(--mantine-paper);
+  border-bottom: 1px solid var(--mantine-border);
+  box-sizing: border-box;
+  z-index: 100;
+}
+
+.dept-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mantine-title);
+}
+
+.status-dot {
+  font-size: 12px;
+  color: var(--mantine-dimmed);
+  display: flex;
+  align-items: center;
+}
+
+.status-dot::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: var(--mantine-success);
+  border-radius: 50%;
+  margin-right: 6px;
+  animation: pulse 1s infinite;
+}
+
+footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  padding: 12px 20px;
+  text-align: center;
+  background-color: var(--mantine-body);
+  border-top: 1px solid var(--mantine-border);
+  box-sizing: border-box;
+}
+
+footer p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.credits-btn {
+  background: transparent;
+  color: var(--mantine-dimmed);
+  padding: 0;
+  height: auto;
+  font-size: 12px;
+  font-weight: normal;
+  text-decoration: underline;
+  width: auto;
+  margin-top: 4px;
+}
+.credits-btn:hover {
+  background: transparent;
+  color: var(--mantine-text);
+}
+
+/* Modal Overlay */
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(26, 27, 30, 0.85); /* Mantine modal overlay */
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+.overlay-content {
+  background: var(--mantine-paper);
+  padding: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--mantine-border);
+  width: 90%;
+  max-width: 400px;
+  text-align: left;
+}
+.overlay-content hr {
+  border: 0;
+  border-top: 1px solid var(--mantine-border);
+  margin: 16px 0;
+}
+
+/* Subtle Feedback Animations */
+.correct-flash {
+  border-color: var(--mantine-success) !important;
+}
+.shake {
+  animation: strictShake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  border-color: var(--mantine-error) !important;
+}
+@keyframes strictShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* @keyframes moveGradient {
+  0%,
+  100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: -50% -50%;
+  }
+} */
+
+/* Media Queries */
+@media (max-width: 600px) {
+  .overlay-content {
+    width: 100%;
+  }
+}
