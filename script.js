@@ -312,9 +312,9 @@ window.checkAnswer = function () {
     .replace(/\s+/g, "");
   let answer = currentLevel[index].answer.toLowerCase().replace(/\s+/g, "");
   let screen = document.getElementById("gameScreen");
-
+  const getMultiplier = (d) => (d === "easy" ? 1 : d === "medium" ? 1.5 : 2);
   if (g === answer) {
-    score += 10;
+    score += 10 * getMultiplier(currentDifficulty);
     document.getElementById("score").innerText = "Score: " + score;
 
     // Visual cue for correct
