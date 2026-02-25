@@ -31,7 +31,7 @@ body {
   align-items: center;
   height: 100vh;
   overflow: hidden;
-  animation: moveGradient 5s ease alternate infinite;
+  /* animation: moveGradient 5s ease alternate infinite; */
 }
 
 /* Mantine Paper Component Style */
