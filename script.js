@@ -109,6 +109,7 @@ let currentLevel = [];
 let index = 0;
 let score = 0;
 let time = 100;
+let totalRounds = 10;
 let interval;
 let currentDifficulty = "";
 
@@ -131,10 +132,10 @@ window.goLevel = function () {
 
 window.startGame = function (level) {
   currentDifficulty = level;
-  // Get 5 random questions for a longer game
+  // Get  random questions for a longer game
   let pool = [...allQuestions[level]]
     .sort(() => Math.random() - 0.5)
-    .slice(0, 5);
+    .slice(0, totalRounds);
   currentLevel = pool;
   index = 0;
   score = 0;
