@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Guess The Emoji</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
+    <link rel="stylesheet" href="style.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"
+    />
+
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
+  </head>
+  <body>
+    <div class="top-bar">
+      <span class="dept-tag">MCA @ University of Jammu</span>
+      <span id="live-status" class="status-dot">Live</span>
+    </div>
+
+    <div class="screen active" id="startScreen">
+      <h1><i class="ti ti-device-gamepad-2"></i> Guess The Emoji</h1>
+      <p>Test your creativity and guess what emoji means.</p>
+
+      <input id="username" placeholder="Enter your name" autocomplete="off" />
+      <button onclick="goLevel()">Start Game</button>
+
+      <div id="leaderboard">
+        <h3 style="margin-top: 0">
+          <i class="ti ti-trophy"></i> Top Live Scores
+        </h3>
+        <ul id="board">
+          <li>Loading scores...</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen" id="levelScreen">
+      <h2>Select Difficulty</h2>
+      <button class="levelBtn" onclick="startGame('easy')">Easy</button>
+      <button class="levelBtn" onclick="startGame('medium')">Medium</button>
+      <button class="levelBtn" onclick="startGame('hard')">Hard</button>
+    </div>
+
+    <div class="screen" id="gameScreen">
+      <h2 id="levelTitle"></h2>
+
+      <div class="emoji" id="emoji"></div>
+
+      <div class="timerBox">
+        <div id="timerBar"></div>
+      </div>
+
+      <input
+        id="guess"
+        placeholder="Type your guess"
+        autocomplete="off"
+      /><br />
+
+      <button id="hintBtn" onclick="getHint()">
+        <i class="ti ti-bulb"></i> Hint (-5 pts)
+      </button>
+      <button onclick="checkAnswer()">Submit</button>
+
+      <p id="score" style="font-weight: bold; font-size: 20px">Score: 0</p>
+    </div>
+
+    <div class="screen" id="endScreen">
+      <h1 id="finalText"></h1>
+      <p
+        id="finalSubtext"
+        style="font-size: 18px; color: var(--mantine-dimmed)"
+      ></p>
+      <button onclick="show('startScreen')">Play Again</button>
+    </div>
+
+    <footer>
+      <p>© 2026 MCA Department. All Rights Reserved.</p>
+      <button class="credits-btn" onclick="toggleCredits()">
+        Full Credits
+      </button>
+    </footer>
+
+    <div id="creditsOverlay" class="overlay" onclick="toggleCredits()">
+      <div class="overlay-content" onclick="event.stopPropagation()">
+        <h2>University of Jammu</h2>
+        <h3>Department of MCA</h3>
+        <hr />
+        <p><b>Dev Team:</b> PRISM Project Group</p>
+        <p><b>Concept:</b> Computer Science Stall 2026</p>
+        <button onclick="toggleCredits()">Close</button>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

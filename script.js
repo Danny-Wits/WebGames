@@ -1,4 +1,6 @@
-// Your web app's Firebase configuration
+/* ════════════════════════════════════════
+   FIREBASE INIT
+════════════════════════════════════════ */
 const firebaseConfig = {
   authDomain: "leaderboard-a2fab.firebaseapp.com",
   projectId: "leaderboard-a2fab",
@@ -7,393 +9,567 @@ const firebaseConfig = {
     "https://leaderboard-a2fab-default-rtdb.asia-southeast1.firebasedatabase.app",
 };
 
-// Initialize Firebase (Compat version)
 firebase.initializeApp(firebaseConfig);
-
-// Get a reference to the Realtime Database service
 const database = firebase.database();
+const lbRef = database.ref("leaderboard");
 
-console.log("Firebase initialized and database reference obtained!");
+let players = [];
+lbRef.on("value", (snapshot) => {
+  const data = snapshot.val();
+  players = data ? Object.values(data) : [];
+  renderBoard();
+});
 
-/* --- FIREBASE LEADERBOARD LISTENER (Compat Syntax) --- */
-database
-  .ref("emoji_game_scores")
-  .orderByChild("score")
-  .limitToLast(10)
-  .on("value", (snapshot) => {
-    const data = snapshot.val();
-    const sortedScores = [];
+/* ════════════════════════════════════════
+   ACHIEVEMENTS
+════════════════════════════════════════ */
+const ACHIEVEMENTS = [
+  {
+    id: "first_blood",
+    ico: "droplet",
+    name: "First Blood",
+    desc: "Answer your first question",
+    test: (s) => s.total >= 1,
+  },
+  {
+    id: "on_fire",
+    ico: "flame",
+    name: "On Fire",
+    desc: "5-answer streak",
+    test: (s) => s.maxStreak >= 5,
+  },
+  {
+    id: "speed_demon",
+    ico: "zap",
+    name: "Speed Demon",
+    desc: "Answer in under 5 seconds",
+    test: (s) => s.bestTime <= 5,
+  },
+  {
+    id: "century",
+    ico: "hash",
+    name: "Century",
+    desc: "Score 100+ points",
+    test: (s) => s.score >= 100,
+  },
+];
 
-    // Convert object to array
-    for (let id in data) {
-      sortedScores.push(data[id]);
-    }
+/* ════════════════════════════════════════
+   STATE & ICONS
+════════════════════════════════════════ */
+let G = {
+  name: "",
+  mode: "riddle",
+  diff: "easy",
+  qs: [],
+  idx: 0,
+  score: 0,
+  streak: 0,
+  maxStreak: 0,
+  correct: 0,
+  total: 0,
+  hintsUsed: 0,
+  hintThisQ: false,
+  x2Active: false,
+  frozen: false,
+  skips: 2,
+  startedQ: 0,
+  times: [],
+  bestTime: Infinity,
+  catStats: {},
+  catCorrect: {},
+  unlocked: [],
+  powerups: { fifty: true, freeze: true, reveal: true, x2: true },
+  answered: false,
+  myId: "",
+};
+let timerInterval = null,
+  timerLeft = 40;
 
-    // Sort highest to lowest
-    sortedScores.sort((a, b) => b.score - a.score);
+// Initialize Lucide icons on first load
+lucide.createIcons();
 
-    const board = document.getElementById("board");
-    board.innerHTML = "";
+function refreshIcons() {
+  lucide.createIcons();
+}
 
-    if (sortedScores.length === 0) {
-      board.innerHTML = "<li>No scores yet. Be the first!</li>";
-      return;
-    }
-
-    sortedScores.forEach((s, i) => {
-      let li = document.createElement("li");
-
-      // Assign Tabler Icons for top 3, otherwise use the rank number
-      let rankDisplay = "";
-      if (i === 0) {
-        rankDisplay = '<i class="ti ti-medal" style="color: #fcc419;"></i>'; // Gold
-      } else if (i === 1) {
-        rankDisplay = '<i class="ti ti-medal" style="color: #adb5bd;"></i>'; // Silver
-      } else if (i === 2) {
-        rankDisplay = '<i class="ti ti-medal" style="color: #ed9121;"></i>'; // Bronze
-      } else {
-        rankDisplay = `<small style="color: var(--mantine-dimmed); margin-right: 8px;">#${i + 1}</small>`;
-      }
-
-      li.innerHTML = `
-        <span style="display: flex; align-items: center;">
-            ${rankDisplay}
-            <b style="text-transform: uppercase; letter-spacing: 0.5px;">${s.name}</b>
-        </span>
-        <span class="score-display">${s.score}</span>
-    `;
-      board.appendChild(li);
-    });
+function saveMe() {
+  lbRef.child(G.myId).set({
+    id: G.myId,
+    name: G.name,
+    score: G.score,
   });
+}
 
-/* --- GAME DATA --- */
-const allQuestions = {
-  easy: [
-    { emoji: "🔥🧱", answer: "firewall" },
-    { emoji: "🔵🦷", answer: "bluetooth" },
-    { emoji: "🌈", answer: "rainbow" },
-    { emoji: "⭐🐟", answer: "starfish" },
-    { emoji: "🧈🪰", answer: "butterfly" },
-    { emoji: "🌊🐴", answer: "seahorse" },
-    { emoji: "💧🍈", answer: "watermelon" },
-    { emoji: "🥇🐟", answer: "goldfish" },
-    { emoji: "✋👜", answer: "handbag" },
-    { emoji: "📖🐛", answer: "bookworm" },
-    { emoji: "🐶🏠", answer: "doghouse" },
-    { emoji: "🚪🔔", answer: "doorbell" },
-    { emoji: "🔥🏠", answer: "fireplace" },
-    { emoji: "💧⛰️", answer: "waterfall" },
-    { emoji: "🌙💡", answer: "moonlight" },
+/* ════════════════════════════════════════
+   UI & LOGIC
+════════════════════════════════════════ */
+function toast(msg) {
+  const zone = document.getElementById("toastZone");
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  zone.appendChild(t);
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => t.classList.add("show")),
+  );
+  setTimeout(() => {
+    t.classList.remove("show");
+    setTimeout(() => t.remove(), 300);
+  }, 3000);
+}
 
-    { emoji: "☀️🌼", answer: "sunflower" },
-    { emoji: "🧊🍦", answer: "icecream" },
-    { emoji: "🍎📱", answer: "applephone" },
-    { emoji: "🐱🐟", answer: "catfish" },
-    { emoji: "👟➰", answer: "shoelace" },
-    { emoji: "🍞🧈", answer: "breadbutter" },
-    { emoji: "🌧️🧥", answer: "raincoat" },
-    { emoji: "🎂🔥", answer: "birthday" },
-    { emoji: "🦶⚽", answer: "football" },
-    { emoji: "🚗🏁", answer: "racecar" },
-    { emoji: "🐝🍯", answer: "honeybee" },
-    { emoji: "🌊🐠", answer: "fishwave" },
-    { emoji: "🛏️🏠", answer: "bedroom" },
-    { emoji: "🍫🥛", answer: "chocolate" },
-    { emoji: "🧢👦", answer: "capboy" },
-    { emoji: "🐼🎋", answer: "panda" },
-    { emoji: "🍔👑", answer: "burgerking" },
-    { emoji: "📚🎓", answer: "graduate" },
-    { emoji: "🐸👑", answer: "frogprince" },
-    { emoji: "🚀🌙", answer: "spacemoon" },
-    { emoji: "🍕❤️", answer: "pizzalove" },
-    { emoji: "🎧🎵", answer: "headphone" },
-    { emoji: "🐔🥚", answer: "chickenegg" },
-    { emoji: "🌳🏠", answer: "treehouse" },
-    { emoji: "🍟🥤", answer: "fastfood" },
-    { emoji: "🦁👑", answer: "lionking" },
-    { emoji: "🍿🎬", answer: "movie" },
-    { emoji: "🐢🏁", answer: "slowrace" },
-    { emoji: "🎮🧑", answer: "gamer" },
-    { emoji: "👓📚", answer: "study" },
-    { emoji: "🎒🏫", answer: "schoolbag" },
-    { emoji: "🚲🌳", answer: "parkride" },
-    { emoji: "🍩☕", answer: "donutcoffee" },
-    { emoji: "🐧❄️", answer: "penguin" },
-  ],
-  medium: [
-    { emoji: "🕷️🕸️", answer: "spiderweb" },
-    { emoji: "🍯🪮", answer: "honeycomb" },
-    { emoji: "🍯🌙", answer: "honeymoon" },
-    { emoji: "💡🏠", answer: "lighthouse" },
-    { emoji: "🟢🏠", answer: "greenhouse" },
-    { emoji: "🧊🏔️", answer: "iceberg" },
-    { emoji: "🐎⚡", answer: "horsepower" },
-    { emoji: "❤️🥁", answer: "heartbeat" },
-    { emoji: "🌍🪱", answer: "earthworm" },
-    { emoji: "🌙🚶", answer: "moonwalk" },
-
-    { emoji: "☀️🕶️", answer: "sunglasses" },
-    { emoji: "📚🐛", answer: "bookworm" },
-    { emoji: "🐟⭐", answer: "starfish" },
-    { emoji: "🌧️🌈", answer: "rainbow" },
-    { emoji: "🦷🧚", answer: "toothfairy" },
-    { emoji: "🍎📱", answer: "applephone" },
-    { emoji: "🧠🌩️", answer: "brainstorm" },
-    { emoji: "👶🪑", answer: "highchair" },
-    { emoji: "🌊🏄", answer: "surfing" },
-    { emoji: "🐍🪜", answer: "snakeladder" },
-
-    { emoji: "🧁🎂", answer: "cupcake" },
-    { emoji: "🌼🌻", answer: "sunflower" },
-    { emoji: "🐝🍯", answer: "honeybee" },
-    { emoji: "🔥🚒", answer: "firetruck" },
-    { emoji: "🌍✈️", answer: "worldtour" },
-    { emoji: "🎬⭐", answer: "superstar" },
-    { emoji: "🐶🏠", answer: "doghouse" },
-    { emoji: "🧊🥤", answer: "coldrink" },
-    { emoji: "📸⭐", answer: "photostar" },
-    { emoji: "🌙⭐", answer: "nightstar" },
-
-    { emoji: "🏀🔥", answer: "hotshot" },
-    { emoji: "🛏️🌙", answer: "bedtime" },
-    { emoji: "🍕❤️", answer: "pizzalover" },
-    { emoji: "🕰️🏃", answer: "timeout" },
-    { emoji: "🎵❤️", answer: "lovesong" },
-    { emoji: "📦🚚", answer: "delivery" },
-    { emoji: "🎮⚡", answer: "gamepower" },
-    { emoji: "🐱🦁", answer: "wildcat" },
-    { emoji: "🍫🥛", answer: "chocomilk" },
-    { emoji: "🌧️☔", answer: "raincoat" },
-
-    { emoji: "🧳✈️", answer: "traveller" },
-    { emoji: "👑⭐", answer: "kingstar" },
-    { emoji: "🎤🎶", answer: "micmusic" },
-    { emoji: "🚗💨", answer: "fastcar" },
-    { emoji: "🍔👑", answer: "burgerking" },
-    { emoji: "🕶️⭐", answer: "coolstar" },
-    { emoji: "📱🔒", answer: "lockscreen" },
-    { emoji: "🧠🎯", answer: "mindset" },
-    { emoji: "🌊🐚", answer: "seashell" },
-    { emoji: "🌟🧭", answer: "northstar" },
-  ],
-
-  hard: [
-    { emoji: "🐎🪖", answer: "trojanhorse" },
-    { emoji: "📦🔓", answer: "pandorasbox" },
-    { emoji: "🎲⬇️", answer: "dominoeffect" },
-    { emoji: "🐰🕳️", answer: "rabbithole" },
-    { emoji: "🦋🌊", answer: "butterflyeffect" },
-    { emoji: "🐟📧", answer: "phishing" },
-    { emoji: "💪🔒", answer: "bruteforceattack" },
-    { emoji: "🍝💻", answer: "spaghetticode" },
-    { emoji: "😴📦", answer: "lazyloading" },
-    { emoji: "🤖🧪", answer: "turingtest" },
-
-    { emoji: "🧠🔌", answer: "neuralnetwork" },
-    { emoji: "☁️💾", answer: "cloudstorage" },
-    { emoji: "🔑🔐", answer: "encryptionkey" },
-    { emoji: "🌐🕸️", answer: "worldwideweb" },
-    { emoji: "📡🛰️", answer: "satellitecommunication" },
-    { emoji: "💻🐞", answer: "debugging" },
-    { emoji: "🧱⛓️", answer: "blockchain" },
-    { emoji: "🔎📊", answer: "dataanalysis" },
-    { emoji: "⚡🧠", answer: "machinelearning" },
-    { emoji: "🤖📊", answer: "artificialintelligence" },
-
-    { emoji: "📱🧬", answer: "biometricscanner" },
-    { emoji: "👁️🔒", answer: "faceunlock" },
-    { emoji: "🛡️💻", answer: "cybersecurity" },
-    { emoji: "🔗🌍", answer: "hyperlink" },
-    { emoji: "📶🌐", answer: "internetconnection" },
-    { emoji: "🧑‍💻⌨️", answer: "programming" },
-    { emoji: "📜⚙️", answer: "algorithm" },
-    { emoji: "🧠⚙️", answer: "deepthinking" },
-    { emoji: "🌙💻", answer: "darkmode" },
-    { emoji: "📁🗂️", answer: "filesystem" },
-
-    { emoji: "🧑‍💻🐍", answer: "pythonprogramming" },
-    { emoji: "☕💻", answer: "javadeveloper" },
-    { emoji: "📱🎮", answer: "mobilegaming" },
-    { emoji: "🎥💻", answer: "videostreaming" },
-    { emoji: "🧑‍💻🔄", answer: "versioncontrol" },
-    { emoji: "📡🌎", answer: "globalnetwork" },
-    { emoji: "🔐🌐", answer: "securelogin" },
-    { emoji: "📊📈", answer: "datascience" },
-    { emoji: "💾🧠", answer: "memorycache" },
-    { emoji: "🔎🐞", answer: "bugtracking" },
-
-    { emoji: "📶📱", answer: "wirelesssignal" },
-    { emoji: "🧑‍💻🧪", answer: "softwaretesting" },
-    { emoji: "🎮🕹️", answer: "arcadegame" },
-    { emoji: "🌐📚", answer: "onlinelearning" },
-    { emoji: "🧭🌐", answer: "navigationmap" },
-    { emoji: "📱💬", answer: "instantmessage" },
-    { emoji: "🧑‍💻🌙", answer: "nightcoding" },
-    { emoji: "🔄💻", answer: "systemupdate" },
-    { emoji: "📦💻", answer: "softwarepackage" },
-    { emoji: "🧠📡", answer: "smarttechnology" },
-  ],
-};
-
-/* --- GAME STATE --- */
-let currentLevel = [];
-let index = 0;
-let score = 0;
-let time = 100;
-let totalRounds = 10;
-let interval;
-let currentDifficulty = "";
-
-window.show = function (id) {
-  document
-    .querySelectorAll(".screen")
-    .forEach((s) => s.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-  if (id === "startScreen") document.getElementById("username").value = "";
-};
-
-window.goLevel = function () {
-  let name = document.getElementById("username").value.trim();
-  if (!name) {
-    alert("Enter your name to join the leaderboard!");
+function renderBoard() {
+  const el = document.getElementById("leaderboardList");
+  const sorted = [...players].sort((a, b) => b.score - a.score);
+  if (!sorted.length) {
+    el.innerHTML = '<div class="empty-state">No players yet</div>';
     return;
   }
-  window.show("levelScreen");
-};
 
-window.startGame = function (level) {
-  currentDifficulty = level;
-  // Get  random questions for a longer game
-  let pool = [...allQuestions[level]]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, totalRounds);
-  currentLevel = pool;
-  index = 0;
-  score = 0;
-
-  document.getElementById("score").innerText = "Score: 0";
-  document.getElementById("levelTitle").innerText =
-    "Level: " + level.toUpperCase();
-
-  window.show("gameScreen");
-  loadQuestion();
-};
-
-function loadQuestion() {
-  document.getElementById("emoji").innerText = currentLevel[index].emoji;
-  document.getElementById("guess").value = "";
-  document.getElementById("guess").focus();
-  startTimer();
+  el.innerHTML = sorted
+    .slice(0, 5)
+    .map(
+      (p, i) => `
+    <div class="lb-item ${p.id === G.myId ? "is-me" : ""}">
+      <div class="lb-rank">${i + 1}</div>
+      <div class="lb-name">${p.name}</div>
+      <div class="lb-score">${p.score}</div>
+    </div>`,
+    )
+    .join("");
 }
 
-function startTimer() {
-  clearInterval(interval);
-  time = 100;
-  let bar = document.getElementById("timerBar");
-  bar.style.width = "100%";
-  bar.style.backgroundColor = "#ff4b2b";
-
-  interval = setInterval(() => {
-    time -= 0.5; // 20 second timer
-    bar.style.width = time + "%";
-
-    // Change color as time runs out
-    if (time < 30) bar.style.backgroundColor = "#dc3545";
-
-    if (time <= 0) endGame("TIME");
-  }, 100);
+function addCatStat(q, ok) {
+  const cat = q.cat || (q.imgs ? "Icon Match" : q.opts ? "MCQ" : "Riddle");
+  if (!G.catStats[cat]) G.catStats[cat] = { c: 0, w: 0 };
+  if (ok) {
+    G.catStats[cat].c++;
+    if (!G.catCorrect[cat]) G.catCorrect[cat] = 0;
+    G.catCorrect[cat]++;
+  } else G.catStats[cat].w++;
+  renderCatStats();
 }
 
-window.checkAnswer = function () {
-  let g = document
-    .getElementById("guess")
-    .value.trim()
-    .toLowerCase()
-    .replace(/\s+/g, "");
-  let answer = currentLevel[index].answer.toLowerCase().replace(/\s+/g, "");
-  let screen = document.getElementById("gameScreen");
-  const getMultiplier = (d) => (d === "easy" ? 1 : d === "medium" ? 1.5 : 2);
-  if (g === answer) {
-    score += 10 * getMultiplier(currentDifficulty);
-    document.getElementById("score").innerText = "Score: " + score;
+function renderCatStats() {
+  const el = document.getElementById("catStatsList");
+  const entries = Object.entries(G.catStats);
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty-state">Play to see stats</div>';
+    return;
+  }
+  el.innerHTML = entries
+    .map(
+      ([cat, v]) => `
+    <div class="cat-stat-row">
+      <span>${cat}</span>
+      <span><span class="text-green mr-2">✓ ${v.c}</span> <span class="text-red">✗ ${v.w}</span></span>
+    </div>`,
+    )
+    .join("");
+}
 
-    // Visual cue for correct
-    screen.classList.add("correct-flash");
-    setTimeout(() => screen.classList.remove("correct-flash"), 500);
-
-    index++;
-    if (index >= currentLevel.length) {
-      endGame("WIN");
-    } else {
-      loadQuestion();
+function checkAchs() {
+  const s = {
+    total: G.total,
+    correct: G.correct,
+    score: G.score,
+    maxStreak: G.maxStreak,
+    bestTime: G.bestTime,
+    hintsUsed: G.hintsUsed,
+    avgTime: G.times.length
+      ? G.times.reduce((a, b) => a + b, 0) / G.times.length
+      : 99,
+    catCorrect: G.catCorrect,
+  };
+  ACHIEVEMENTS.forEach((a) => {
+    if (!G.unlocked.includes(a.id) && a.test(s)) {
+      G.unlocked.push(a.id);
+      toast(`Achievement Unlocked: ${a.name}`);
     }
+  });
+  renderAchs();
+}
+
+function renderAchs() {
+  document.getElementById("achList").innerHTML = ACHIEVEMENTS.map(
+    (a) => `
+    <div class="ach-item ${G.unlocked.includes(a.id) ? "unlocked" : "locked"}">
+      <i data-lucide="${a.ico}" class="ach-ico"></i>
+      <div class="ach-info">
+        <div class="ach-name">${a.name}</div>
+        <div class="ach-desc">${a.desc}</div>
+      </div>
+    </div>`,
+  ).join("");
+  refreshIcons();
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function pickMode(el) {
+  document
+    .querySelectorAll(".mode-btn")
+    .forEach((b) => b.classList.remove("active"));
+  el.classList.add("active");
+  G.mode = el.dataset.mode;
+}
+
+function pickDiff(el) {
+  document
+    .querySelectorAll(".diff-btn")
+    .forEach((b) => b.classList.remove("active"));
+  el.classList.add("active");
+  G.diff = el.dataset.d;
+}
+
+function setFeedback(type, msg) {
+  const el = document.getElementById("feedbackBox");
+  el.className = `feedback-box show fb-${type}`;
+  el.textContent = msg;
+}
+
+function buildQs() {
+  const modes =
+    G.mode === "random"
+      ? ["riddle", "emoji", "trivia", "math", "science"]
+      : [G.mode];
+  let pool = [];
+  modes.forEach((m) => {
+    let qs = [...(QB[m] || [])];
+    if (G.diff === "easy") qs = qs.filter((q) => q.pts <= 2);
+    if (G.diff === "medium") qs = qs.filter((q) => q.pts <= 3);
+    if (!qs.length) qs = [...(QB[m] || [])];
+    qs = shuffle(qs);
+    pool.push(...qs.map((q) => ({ ...q, _mode: m })));
+  });
+  return shuffle(pool).slice(0, 10);
+}
+
+function startGame() {
+  G.name = document.getElementById("playerNameInput").value.trim();
+  if (!G.name) {
+    document.getElementById("playerNameInput").focus();
+    return;
+  }
+
+  G.qs = buildQs();
+  if (!G.qs.length) {
+    alert("No questions found.");
+    return;
+  }
+  G.myId = "qa_" + Date.now();
+  saveMe();
+
+  document.getElementById("loginPage").style.display = "none";
+  document.getElementById("quizPage").style.display = "block";
+
+  document.getElementById("playerTag").innerHTML =
+    `<i data-lucide="user" class="icon-sm"></i> ${G.name}`;
+  document.getElementById("skipsLeft").textContent = G.skips;
+
+  renderAchs();
+  showQ();
+}
+
+function showQ() {
+  if (G.idx >= G.qs.length) {
+    endGame();
+    return;
+  }
+  const q = G.qs[G.idx];
+  G.hintThisQ = false;
+  G.answered = false;
+  G.x2Active = false;
+
+  document.getElementById("qNumLabel").textContent =
+    `Q ${G.idx + 1} / ${G.qs.length}`;
+  document.getElementById("qPtsLabel").textContent = `+${q.pts || 2} PTS`;
+  document.getElementById("qText").textContent = q.q || "Guess the word:";
+
+  const er = document.getElementById("emojiRow");
+  if (q.imgs) {
+    er.style.display = "flex";
+    er.innerHTML = q.imgs
+      .map((icon, i) => {
+        const isLucide = /^[a-z\-]+$/.test(icon);
+        const iconHtml = isLucide
+          ? `<i data-lucide="${icon}"></i>`
+          : `<span style="font-size: 2rem; line-height: 1;">${icon}</span>`;
+        return `${iconHtml} ${i < q.imgs.length - 1 ? '<span class="text-gray">+</span>' : ""}`;
+      })
+      .join("");
+    refreshIcons();
   } else {
-    // Visual cue for wrong
-    screen.classList.add("shake");
-    setTimeout(() => screen.classList.remove("shake"), 400);
-    endGame("WRONG");
-  }
-};
-
-function endGame(status) {
-  clearInterval(interval);
-  let name = document.getElementById("username").value.trim() || "Anonymous";
-  let answerText = currentLevel[index] ? currentLevel[index].answer : "";
-
-  const finalText = document.getElementById("finalText");
-  const finalSubtext = document.getElementById("finalSubtext");
-
-  if (status === "WIN") {
-    finalText.innerHTML = `<i class="ti ti-confetti" style="color: var(--mantine-success); font-size: 3rem;"></i><br>Success!`;
-    finalSubtext.innerHTML = `Excellent work, <b>${name}</b>! You cleared the level with <span class="score-display">${score}</span> points.`;
-  } else if (status === "TIME") {
-    finalText.innerHTML = `<i class="ti ti-hourglass-empty" style="color: var(--mantine-error); font-size: 3rem;"></i><br>Time Out`;
-    finalSubtext.innerHTML = `The timer hit zero! The answer was <b style="color: var(--mantine-title)">${answerText}</b>.`;
-  } else if (status === "WRONG") {
-    finalText.innerHTML = `<i class="ti ti-circle-x" style="color: var(--mantine-error); font-size: 3rem;"></i><br>Incorrect`;
-    finalSubtext.innerHTML = `That wasn't quite right. The answer was <b style="color: var(--mantine-title)">${answerText}</b>.`;
+    er.style.display = "none";
   }
 
-  // Submit to Firebase
-  if (score > 0) {
-    database.ref("emoji_game_scores").push({
-      name: name,
-      score: score,
-      level: currentDifficulty,
-      timestamp: Date.now(),
+  const mcqGrid = document.getElementById("mcqGrid");
+  const textSec = document.getElementById("textSection");
+  if (q.opts) {
+    mcqGrid.style.display = "grid";
+    textSec.style.display = "none";
+    mcqGrid.innerHTML = q.opts
+      .map(
+        (opt, i) => `
+      <button class="mcq-opt" onclick="checkMCQ(${i})" data-i="${i}">
+        ${opt}
+      </button>`,
+      )
+      .join("");
+  } else {
+    mcqGrid.style.display = "none";
+    textSec.style.display = "block";
+    document.getElementById("answerInput").value = "";
+    document.getElementById("answerInput").focus();
+    document.getElementById("submitBtn").disabled = false;
+  }
+
+  document.getElementById("feedbackBox").className = "feedback-box";
+  document.getElementById("hintBox").className = "hint-box";
+  document.getElementById("hintBtn").disabled = false;
+
+  document.getElementById("progFill").style.width =
+    (G.idx / G.qs.length) * 100 + "%";
+  document.getElementById("progLbl").textContent = G.idx + " / " + G.qs.length;
+
+  updateStats();
+  G.startedQ = Date.now();
+  startTimer(q.opts ? 35 : 40);
+}
+
+function startTimer(s = 40) {
+  clearInterval(timerInterval);
+  timerLeft = s;
+  updateTimerUI();
+  timerInterval = setInterval(() => {
+    if (G.frozen) return;
+    timerLeft--;
+    updateTimerUI();
+    if (timerLeft <= 0) {
+      clearInterval(timerInterval);
+      timeUp();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+}
+
+function updateTimerUI() {
+  const fill = document.getElementById("timerFill");
+  const num = document.getElementById("timerNum");
+  fill.style.width = (timerLeft / 40) * 100 + "%";
+  num.textContent = timerLeft;
+  fill.className =
+    "timer-fill" + (timerLeft <= 10 ? " crit" : timerLeft <= 20 ? " warn" : "");
+}
+
+function timeUp() {
+  const q = G.qs[G.idx];
+  setFeedback("err", `Time's up! Answer: ${q.opts ? q.opts[q.a] : q.a}`);
+  G.streak = 0;
+  G.total++;
+  addCatStat(q, false);
+  setTimeout(nextQ, 2000);
+}
+
+function checkTyped() {
+  if (G.answered) return;
+  const raw = document.getElementById("answerInput").value.trim().toLowerCase();
+  const correct = G.qs[G.idx].a.toLowerCase();
+  G.total++;
+  const t = Math.round((Date.now() - G.startedQ) / 1000);
+  G.times.push(t);
+  if (t < G.bestTime) G.bestTime = t;
+
+  if (raw === correct || raw === correct.replace(/\s+/g, "")) {
+    handleOk(t);
+  } else {
+    G.total--;
+    setFeedback("err", "Wrong! Try again…");
+    document.getElementById("answerInput").select();
+  }
+}
+
+function checkMCQ(idx) {
+  if (G.answered) return;
+  G.answered = true;
+  const q = G.qs[G.idx];
+  document.querySelectorAll(".mcq-opt").forEach((b) => (b.disabled = true));
+  G.total++;
+  const t = Math.round((Date.now() - G.startedQ) / 1000);
+  G.times.push(t);
+  if (t < G.bestTime) G.bestTime = t;
+
+  if (idx === q.a) {
+    document.querySelectorAll(".mcq-opt")[idx].classList.add("is-correct");
+    handleOk(t, true);
+  } else {
+    document.querySelectorAll(".mcq-opt")[idx].classList.add("is-wrong");
+    if (q.a < 4)
+      document.querySelectorAll(".mcq-opt")[q.a].classList.add("is-correct");
+    G.streak = 0;
+    setFeedback("err", "Wrong! Answer: " + q.opts[q.a]);
+    addCatStat(q, false);
+    setTimeout(nextQ, 2000);
+  }
+}
+
+function handleOk(t, isMCQ = false) {
+  stopTimer();
+  G.answered = true;
+  G.correct++;
+  G.streak++;
+  if (G.streak > G.maxStreak) G.maxStreak = G.streak;
+
+  const q = G.qs[G.idx];
+  let pts = (q.pts || 2) * (G.x2Active ? 2 : 1);
+  if (G.hintThisQ) pts = Math.max(1, pts - 1);
+  if (t <= 5) pts += 1;
+  G.score += pts;
+
+  setFeedback("ok", `Correct! +${pts} pts`);
+  addCatStat(q, true);
+  saveMe();
+  updateStats();
+  checkAchs();
+  setTimeout(nextQ, isMCQ ? 1800 : 1500);
+}
+
+function nextQ() {
+  G.idx++;
+  showQ();
+}
+
+function useHint() {
+  if (G.hintThisQ) return;
+  const q = G.qs[G.idx];
+  const hb = document.getElementById("hintBox");
+  hb.textContent = q.hint;
+  hb.className = "hint-box show";
+  G.hintThisQ = true;
+  G.hintsUsed++;
+  document.getElementById("hintBtn").disabled = true;
+}
+
+function skipQ() {
+  if (G.skips <= 0) return;
+  G.skips--;
+  G.streak = 0;
+  G.total++;
+  stopTimer();
+  setFeedback("info", `Skipped! (${G.skips} left)`);
+  addCatStat(G.qs[G.idx], false);
+  document.getElementById("skipsLeft").textContent = G.skips;
+  if (G.skips <= 0) document.getElementById("skipBtn").disabled = true;
+  setTimeout(nextQ, 1200);
+}
+
+function usePowerup(pu) {
+  if (!G.powerups[pu]) return;
+  G.powerups[pu] = false;
+  document.querySelector(`[data-pu=${pu}]`).disabled = true;
+
+  const q = G.qs[G.idx];
+  if (pu === "fifty") {
+    if (!q.opts) {
+      setFeedback("info", "50/50 only works on MCQ!");
+      G.powerups[pu] = true;
+      document.querySelector("[data-pu=fifty]").disabled = false;
+      return;
+    }
+    const btns = [...document.querySelectorAll(".mcq-opt")];
+    let rem = 0;
+    btns.forEach((b, i) => {
+      if (i !== q.a && rem < 2) {
+        b.disabled = true;
+        b.style.opacity = "0.2";
+        rem++;
+      }
     });
+    setFeedback("info", "Two wrong answers removed!");
+  } else if (pu === "freeze") {
+    G.frozen = true;
+    setFeedback("info", "Timer frozen for 10 seconds!");
+    setTimeout(() => {
+      G.frozen = false;
+    }, 10000);
+  } else if (pu === "reveal") {
+    useHint();
+    if (q.opts)
+      document.querySelectorAll(".mcq-opt")[q.a].style.border =
+        "2px solid var(--mantine-color-green)";
+    G.hintThisQ = false;
+    G.hintsUsed--;
+    setFeedback("info", "Answer revealed! (no penalty)");
+  } else if (pu === "x2") {
+    G.x2Active = true;
+    document.getElementById("qPtsLabel").textContent =
+      `+${(q.pts || 2) * 2} PTS`;
+    setFeedback("info", "DOUBLE POINTS active this question!");
   }
-
-  window.show("endScreen");
 }
 
-// Enter key to submit guess
-document.getElementById("guess").addEventListener("keypress", function (e) {
-  if (e.key === "Enter") window.checkAnswer();
+function updateStats() {
+  document.getElementById("svScore").textContent = G.score;
+  document.getElementById("svStreak").textContent = G.streak;
+  const acc = G.total > 0 ? Math.round((G.correct / G.total) * 100) : 100;
+  document.getElementById("svAcc").textContent = acc + "%";
+  const avg = G.times.length
+    ? Math.round(G.times.reduce((a, b) => a + b, 0) / G.times.length)
+    : 0;
+  document.getElementById("svSpeed").textContent = avg ? avg + "s" : "—";
+}
+
+function endGame() {
+  stopTimer();
+  saveMe();
+  checkAchs();
+  document.getElementById("quizPage").style.display = "none";
+  document.getElementById("resultPage").style.display = "block";
+
+  const acc = G.total > 0 ? Math.round((G.correct / G.total) * 100) : 0;
+  const avg = G.times.length
+    ? Math.round(G.times.reduce((a, b) => a + b, 0) / G.times.length)
+    : 0;
+
+  document.getElementById("resultTitle").textContent =
+    acc >= 80 ? "Excellent" : acc >= 50 ? "Solid Effort" : "Keep Training";
+
+  document.getElementById("resultGrid").innerHTML = `
+    <div class="rs-tile"><span class="rs-val">${G.score}</span><div class="rs-lbl">Points</div></div>
+    <div class="rs-tile"><span class="rs-val">${G.correct}/${G.total}</span><div class="rs-lbl">Correct</div></div>
+    <div class="rs-tile"><span class="rs-val">${acc}%</span><div class="rs-lbl">Accuracy</div></div>
+  `;
+
+  document.getElementById("resultAchList").innerHTML = G.unlocked.length
+    ? G.unlocked
+        .map((id) => {
+          const a = ACHIEVEMENTS.find((x) => x.id === id);
+          return a
+            ? `<div class="ach-item unlocked"><i data-lucide="${a.ico}" class="ach-ico"></i><div class="ach-info"><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div></div>`
+            : "";
+        })
+        .join("")
+    : '<div class="empty-state">No achievements this run.</div>';
+
+  refreshIcons();
+}
+
+document.addEventListener("keypress", (e) => {
+  if (
+    e.key === "Enter" &&
+    document.getElementById("quizPage").style.display !== "none"
+  ) {
+    if (document.getElementById("textSection").style.display !== "none")
+      checkTyped();
+  }
 });
-window.getHint = function () {
-  if (score >= 5) {
-    score -= 5;
-    document.getElementById("score").innerText = "Score: " + score;
-    const answer = currentLevel[index].answer;
-    alert(
-      "Hint: The word starts with '" +
-        answer[0].toUpperCase() +
-        "' and has " +
-        answer.length +
-        " letters!",
-    );
-  } else {
-    alert("Not enough points for a hint!");
-  }
-};
-const personalBest = localStorage.getItem("emoji_pb") || 0;
-if (score > personalBest) {
-  localStorage.setItem("emoji_pb", score);
-  alert("New Personal Best: " + score + "!");
-}
-function toggleCredits() {
-  const overlay = document.getElementById("creditsOverlay");
-  // Toggle between flex and none
-  overlay.style.display = overlay.style.display === "flex" ? "none" : "flex";
-}

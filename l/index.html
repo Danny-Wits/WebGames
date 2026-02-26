@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quiz Arena - Live Leaderboard</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+      :root {
+        /* Mantine Light Theme */
+        --mantine-color-body: #f8f9fa; /* gray 0 - Page background */
+        --mantine-color-dark-7: #ffffff; /* white - Panel background */
+        --mantine-color-dark-6: #f1f3f5; /* gray 1 - Avatar/Icon background */
+        --mantine-color-dark-4: #dee2e6; /* gray 3 - Borders and Rank numbers */
+        --mantine-color-text: #495057; /* gray 7 - Secondary text */
+        --mantine-color-text-title: #212529; /* gray 9 - Headlines and Names */
+
+        /* Pillar & Accent Colors (Light Adjusted) */
+        --gold: #fab005; /* yellow 8 */
+        --silver: #868e96; /* gray 6 */
+        --bronze: #e67e22; /* orange 8 */
+        --blue: #228be6; /* blue 6 */
+
+        font-family: "Inter", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--mantine-color-body);
+        color: var(--mantine-color-text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 20px;
+        overflow-x: hidden;
+      }
+
+      /* Header */
+      .header {
+        text-align: center;
+        margin-bottom: 60px;
+        animation: fadeInDown 0.8s ease-out;
+      }
+      .header h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
+        color: var(--mantine-color-text-title);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      .header p {
+        font-size: 1.25rem;
+        color: var(--blue);
+        font-weight: 600;
+        margin-top: 8px;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+      }
+
+      /* Podium Section */
+      .podium-wrapper {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 60px;
+        height: 350px;
+      }
+
+      .pillar-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 180px;
+        animation: slideUp 0.8s ease-out forwards;
+        opacity: 0;
+        transform: translateY(50px);
+      }
+
+      /* Pillar Animation Delays */
+      .pillar-container.rank-2 {
+        animation-delay: 0.2s;
+      }
+      .pillar-container.rank-1 {
+        animation-delay: 0.4s;
+        z-index: 10;
+      }
+      .pillar-container.rank-3 {
+        animation-delay: 0.6s;
+      }
+
+      /* Player Info above Pillar */
+      .avatar-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: var(--mantine-color-dark-6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: -40px; /* Overlap with pillar */
+        z-index: 2;
+        border: 4px solid var(--mantine-color-body);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      }
+      .avatar-circle i {
+        width: 40px;
+        height: 40px;
+      }
+
+      .rank-1 .avatar-circle {
+        background: rgba(252, 196, 25, 0.15);
+        border-color: var(--gold);
+      }
+      .rank-1 .avatar-circle i {
+        stroke: var(--gold);
+      }
+
+      .rank-2 .avatar-circle {
+        background: rgba(206, 212, 218, 0.15);
+        border-color: var(--silver);
+      }
+      .rank-2 .avatar-circle i {
+        stroke: var(--silver);
+      }
+
+      .rank-3 .avatar-circle {
+        background: rgba(217, 72, 15, 0.15);
+        border-color: var(--bronze);
+      }
+      .rank-3 .avatar-circle i {
+        stroke: var(--bronze);
+      }
+
+      .podium-name {
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: var(--mantine-color-text-title);
+        margin-bottom: 4px;
+        text-align: center;
+        width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .podium-score {
+        font-weight: 800;
+        font-size: 1.5rem;
+        margin-bottom: 16px;
+      }
+      .rank-1 .podium-score {
+        color: var(--gold);
+      }
+      .rank-2 .podium-score {
+        color: var(--silver);
+      }
+      .rank-3 .podium-score {
+        color: var(--bronze);
+      }
+
+      /* The Pillars */
+      .pillar {
+        width: 100%;
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        justify-content: center;
+        padding-top: 50px;
+        font-size: 4rem;
+        font-weight: 800;
+        color: rgba(0, 0, 0, 0.2);
+        box-shadow:
+          inset 0 4px 0 rgba(255, 255, 255, 0.2),
+          0 10px 30px rgba(0, 0, 0, 0.5);
+        position: relative;
+      }
+      .rank-1 .pillar {
+        height: 220px;
+        background: linear-gradient(135deg, var(--gold), #b8860b);
+      }
+      .rank-2 .pillar {
+        height: 160px;
+        background: linear-gradient(135deg, var(--silver), #868e96);
+      }
+      .rank-3 .pillar {
+        height: 120px;
+        background: linear-gradient(135deg, var(--bronze), #a0522d);
+      }
+
+      /* Runner-ups List */
+      .list-container {
+        width: 100%;
+        max-width: 800px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .list-item {
+        display: flex;
+        align-items: center;
+        background: var(--mantine-color-dark-7);
+        border: 1px solid var(--mantine-color-dark-4);
+        padding: 16px 24px;
+        border-radius: var(--radius-md);
+        animation: fadeIn 0.5s ease-out;
+      }
+
+      .list-rank {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--mantine-color-dark-4);
+        width: 50px;
+      }
+      .list-name {
+        flex: 1;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--mantine-color-text-title);
+      }
+      .list-score {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--blue);
+      }
+
+      .empty-state {
+        text-align: center;
+        font-size: 1.5rem;
+        color: var(--mantine-color-dark-4);
+        margin-top: 50px;
+      }
+
+      /* Animations */
+      @keyframes slideUp {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fadeInDown {
+        from {
+          opacity: 0;
+          transform: translateY(-30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>
+        <i
+          data-lucide="swords"
+          style="width: 48px; height: 48px; stroke: var(--blue)"
+        ></i>
+        Quiz Arena
+      </h1>
+      <p>Live Leaderboard</p>
+    </div>
+
+    <div class="podium-wrapper" id="podiumContainer"></div>
+
+    <div class="list-container" id="listContainer"></div>
+
+    <script>
+      // Initialize Lucide Icons
+      lucide.createIcons();
+
+      // Firebase Configuration
+      const firebaseConfig = {
+        authDomain: "leaderboard-a2fab.firebaseapp.com",
+        projectId: "leaderboard-a2fab",
+        storageBucket: "leaderboard-a2fab.appspot.com",
+        databaseURL:
+          "https://leaderboard-a2fab-default-rtdb.asia-southeast1.firebasedatabase.app",
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const database = firebase.database();
+      const lbRef = database.ref("leaderboard");
+
+      // Real-time listener
+      lbRef.on("value", (snapshot) => {
+        const data = snapshot.val();
+        let players = data ? Object.values(data) : [];
+
+        // Sort players by score (Descending)
+        players.sort((a, b) => b.score - a.score);
+
+        renderLeaderboard(players);
+      });
+
+      function renderLeaderboard(players) {
+        const podiumContainer = document.getElementById("podiumContainer");
+        const listContainer = document.getElementById("listContainer");
+
+        if (players.length === 0) {
+          podiumContainer.innerHTML = "";
+          listContainer.innerHTML =
+            '<div class="empty-state">Waiting for challengers to enter the arena...</div>';
+          return;
+        }
+
+        // 1. Build Podium (Top 3)
+        // Array order needs to be [2nd Place, 1st Place, 3rd Place] for visual flexbox layout
+        const top3 = [];
+        if (players[1])
+          top3.push({ ...players[1], rank: 2, class: "rank-2", icon: "medal" });
+        if (players[0])
+          top3.push({ ...players[0], rank: 1, class: "rank-1", icon: "crown" });
+        if (players[2])
+          top3.push({ ...players[2], rank: 3, class: "rank-3", icon: "award" });
+
+        podiumContainer.innerHTML = top3
+          .map(
+            (p) => `
+        <div class="pillar-container ${p.class}">
+          <div class="podium-name">${p.name}</div>
+          <div class="podium-score">${p.score}</div>
+          <div class="avatar-circle">
+            <i data-lucide="${p.icon}"></i>
+          </div>
+          <div class="pillar">${p.rank}</div>
+        </div>
+      `,
+          )
+          .join("");
+
+        // 2. Build Runner-ups List (4th to 10th)
+        const runnerUps = players.slice(3, 10);
+        listContainer.innerHTML = runnerUps
+          .map(
+            (p, index) => `
+        <div class="list-item">
+          <div class="list-rank">#${index + 4}</div>
+          <div class="list-name">${p.name}</div>
+          <div class="list-score">${p.score} PTS</div>
+        </div>
+      `,
+          )
+          .join("");
+        lucide.createIcons();
+      }
+    </script>
+  </body>
+</html>

@@ -1,100 +1,300 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Guess The Emoji</title>
-    <link rel="icon" type="image/svg+xml" href="logo.svg" />
-    <link rel="stylesheet" href="style.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.js"></script>
+    <title>Quiz Arena</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"
     />
 
-    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="style.css" />
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
   </head>
   <body>
-    <div class="top-bar">
-      <span class="dept-tag">MCA @ University of Jammu</span>
-      <span id="live-status" class="status-dot">Live</span>
-    </div>
+    <div class="toast-zone" id="toastZone"></div>
 
-    <div class="screen active" id="startScreen">
-      <h1><i class="ti ti-device-gamepad-2"></i> Guess The Emoji</h1>
-      <p>Test your creativity and guess what emoji means.</p>
+    <div id="app">
+      <div class="main-col">
+        <div class="panel" id="loginPage">
+          <div class="arena-header">
+            <div class="logo">
+              <i data-lucide="zap" class="icon-lg text-blue"></i> Quiz Arena
+            </div>
+            <div class="logo-sub">Battle Royale · Live Multiplayer</div>
+            <div>
+              <span class="live-badge"
+                ><i data-lucide="radio" class="icon-sm"></i> Live</span
+              >
+            </div>
+          </div>
 
-      <input id="username" placeholder="Enter your name" autocomplete="off" />
-      <button onclick="goLevel()">Start Game</button>
+          <div class="form-container">
+            <div class="section-label">Your Callsign</div>
+            <div class="field-wrap">
+              <input
+                class="field-input"
+                id="playerNameInput"
+                placeholder="Enter your battle name..."
+                maxlength="14"
+                autocomplete="off"
+              />
+            </div>
 
-      <div id="leaderboard">
-        <h3 style="margin-top: 0">
-          <i class="ti ti-trophy"></i> Top Live Scores
-        </h3>
-        <ul id="board">
-          <li>Loading scores...</li>
-        </ul>
+            <div class="section-label">Select Mode</div>
+            <div class="mode-grid" id="modeGrid">
+              <div
+                class="mode-btn active"
+                data-mode="riddle"
+                onclick="pickMode(this)"
+              >
+                <i data-lucide="puzzle" class="mode-icon"></i>
+                <div class="mode-name">Riddle</div>
+              </div>
+              <div class="mode-btn" data-mode="emoji" onclick="pickMode(this)">
+                <i data-lucide="images" class="mode-icon"></i>
+                <div class="mode-name">Icon Match</div>
+              </div>
+              <div class="mode-btn" data-mode="trivia" onclick="pickMode(this)">
+                <i data-lucide="globe-2" class="mode-icon"></i>
+                <div class="mode-name">Trivia</div>
+              </div>
+              <div class="mode-btn" data-mode="math" onclick="pickMode(this)">
+                <i data-lucide="calculator" class="mode-icon"></i>
+                <div class="mode-name">Math</div>
+              </div>
+              <div
+                class="mode-btn"
+                data-mode="science"
+                onclick="pickMode(this)"
+              >
+                <i data-lucide="microscope" class="mode-icon"></i>
+                <div class="mode-name">Science</div>
+              </div>
+              <div class="mode-btn" data-mode="random" onclick="pickMode(this)">
+                <i data-lucide="dices" class="mode-icon"></i>
+                <div class="mode-name">Random</div>
+              </div>
+            </div>
+
+            <div class="section-label">Difficulty</div>
+            <div class="diff-row">
+              <button
+                class="diff-btn active"
+                data-d="easy"
+                onclick="pickDiff(this)"
+              >
+                Easy
+              </button>
+              <button class="diff-btn" data-d="medium" onclick="pickDiff(this)">
+                Medium
+              </button>
+              <button class="diff-btn" data-d="hard" onclick="pickDiff(this)">
+                Hard
+              </button>
+            </div>
+
+            <button class="btn-primary" onclick="startGame()">
+              Enter Arena
+            </button>
+          </div>
+        </div>
+
+        <div class="panel" id="quizPage" style="display: none">
+          <div class="q-top-bar">
+            <div class="q-mode-tag" id="qModeTag">
+              <i data-lucide="swords" class="icon-sm"></i> Arena
+            </div>
+            <div class="player-tag" id="playerTag">
+              <i data-lucide="user" class="icon-sm"></i> Player
+            </div>
+          </div>
+
+          <div class="stats-bar">
+            <div class="stat-pill">
+              <span class="sv text-blue" id="svScore">0</span
+              ><span class="sl">Score</span>
+            </div>
+            <div class="stat-pill">
+              <span class="sv text-orange" id="svStreak">0</span
+              ><span class="sl">Streak</span>
+            </div>
+            <div class="stat-pill">
+              <span class="sv text-green" id="svAcc">—</span
+              ><span class="sl">Accuracy</span>
+            </div>
+            <div class="stat-pill">
+              <span class="sv text-gray" id="svSpeed">—</span
+              ><span class="sl">Speed</span>
+            </div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-track">
+              <div class="progress-fill" id="progFill" style="width: 0%"></div>
+            </div>
+            <div class="progress-lbl" id="progLbl">0 / 10</div>
+          </div>
+
+          <div class="timer-wrap">
+            <div class="timer-track">
+              <div class="timer-fill" id="timerFill" style="width: 100%"></div>
+            </div>
+            <div class="timer-num" id="timerNum">40</div>
+          </div>
+
+          <div class="powerup-row">
+            <button
+              class="btn-outline pu-btn"
+              data-pu="fifty"
+              onclick="usePowerup('fifty')"
+            >
+              <i data-lucide="scissors" class="icon-sm"></i> 50/50
+            </button>
+            <button
+              class="btn-outline pu-btn"
+              data-pu="freeze"
+              onclick="usePowerup('freeze')"
+            >
+              <i data-lucide="snowflake" class="icon-sm"></i> Freeze
+            </button>
+            <button
+              class="btn-outline pu-btn"
+              data-pu="reveal"
+              onclick="usePowerup('reveal')"
+            >
+              <i data-lucide="eye" class="icon-sm"></i> Reveal
+            </button>
+            <button
+              class="btn-outline pu-btn"
+              data-pu="x2"
+              onclick="usePowerup('x2')"
+            >
+              <i data-lucide="zap" class="icon-sm"></i> 2x Pts
+            </button>
+          </div>
+
+          <div class="cat-tag" id="catTag">
+            <i data-lucide="tag" class="icon-sm"></i> Category
+          </div>
+
+          <div class="q-card" id="qCard">
+            <div class="q-meta">
+              <span id="qNumLabel">Q 1 / 10</span>
+              <span class="badge-blue" id="qPtsLabel">+2 PTS</span>
+            </div>
+            <div class="q-text" id="qText">Loading…</div>
+            <div class="emoji-row" id="emojiRow" style="display: none"></div>
+          </div>
+
+          <div class="mcq-grid" id="mcqGrid" style="display: none"></div>
+
+          <div id="textSection">
+            <div class="ans-row">
+              <input
+                class="field-input"
+                id="answerInput"
+                placeholder="Type your answer…"
+                autocomplete="off"
+              />
+              <button class="btn-primary" id="submitBtn" onclick="checkTyped()">
+                Check
+              </button>
+            </div>
+            <div class="extra-btns">
+              <button
+                class="btn-subtle text-orange"
+                id="hintBtn"
+                onclick="useHint()"
+              >
+                <i data-lucide="lightbulb" class="icon-sm"></i> Hint −1pt
+              </button>
+              <button class="btn-subtle" id="skipBtn" onclick="skipQ()">
+                <i data-lucide="skip-forward" class="icon-sm"></i> Skip (<span
+                  id="skipsLeft"
+                  >2</span
+                >)
+              </button>
+            </div>
+          </div>
+
+          <div class="feedback-box" id="feedbackBox"></div>
+          <div class="hint-box" id="hintBox"></div>
+        </div>
+
+        <div class="panel text-center" id="resultPage" style="display: none">
+          <i
+            data-lucide="award"
+            class="icon-xl text-yellow"
+            style="margin: 20px 0"
+          ></i>
+          <div class="result-title" id="resultTitle">Complete</div>
+          <div class="result-stats-grid" id="resultGrid"></div>
+          <div class="result-msg" id="resultMsg"></div>
+
+          <div style="margin: 24px 0; text-align: left">
+            <div class="section-label">Achievements</div>
+            <div id="resultAchList"></div>
+          </div>
+
+          <button
+            class="btn-primary"
+            style="width: 100%"
+            onclick="location.reload()"
+          >
+            <i data-lucide="rotate-ccw" class="icon-sm"></i> Play Again
+          </button>
+        </div>
+      </div>
+
+      <div class="side-col">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i data-lucide="trophy" class="icon-sm text-yellow"></i> Live
+              Board
+              <div class="live-badge">Top 5</div>
+            </div>
+            <div class="logo-sub">
+              <br />Visit the Computer Science Stall to see full leaderboard
+            </div>
+          </div>
+          <div id="leaderboardList">
+            <div class="empty-state">Waiting for players…</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i data-lucide="bar-chart-2" class="icon-sm text-blue"></i> Cat
+              Stats
+            </div>
+          </div>
+          <div id="catStatsList">
+            <div class="empty-state">Play to see stats</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i data-lucide="medal" class="icon-sm text-orange"></i> Badges
+            </div>
+          </div>
+          <div id="achList"></div>
+        </div>
       </div>
     </div>
 
-    <div class="screen" id="levelScreen">
-      <h2>Select Difficulty</h2>
-      <button class="levelBtn" onclick="startGame('easy')">Easy</button>
-      <button class="levelBtn" onclick="startGame('medium')">Medium</button>
-      <button class="levelBtn" onclick="startGame('hard')">Hard</button>
-    </div>
-
-    <div class="screen" id="gameScreen">
-      <h2 id="levelTitle"></h2>
-
-      <div class="emoji" id="emoji"></div>
-
-      <div class="timerBox">
-        <div id="timerBar"></div>
-      </div>
-
-      <input
-        id="guess"
-        placeholder="Type your guess"
-        autocomplete="off"
-      /><br />
-
-      <button id="hintBtn" onclick="getHint()">
-        <i class="ti ti-bulb"></i> Hint (-5 pts)
-      </button>
-      <button onclick="checkAnswer()">Submit</button>
-
-      <p id="score" style="font-weight: bold; font-size: 20px">Score: 0</p>
-    </div>
-
-    <div class="screen" id="endScreen">
-      <h1 id="finalText"></h1>
-      <p
-        id="finalSubtext"
-        style="font-size: 18px; color: var(--mantine-dimmed)"
-      ></p>
-      <button onclick="show('startScreen')">Play Again</button>
-    </div>
-
-    <footer>
-      <p>© 2026 MCA Department. All Rights Reserved.</p>
-      <button class="credits-btn" onclick="toggleCredits()">
-        Full Credits
-      </button>
-    </footer>
-
-    <div id="creditsOverlay" class="overlay" onclick="toggleCredits()">
-      <div class="overlay-content" onclick="event.stopPropagation()">
-        <h2>University of Jammu</h2>
-        <h3>Department of MCA</h3>
-        <hr />
-        <p><b>Dev Team:</b> PRISM Project Group</p>
-        <p><b>Concept:</b> Computer Science Stall 2026</p>
-        <button onclick="toggleCredits()">Close</button>
-      </div>
-    </div>
-
+    <script src="qbank.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
